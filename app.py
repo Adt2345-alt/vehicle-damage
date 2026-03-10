@@ -13,7 +13,7 @@ load_dotenv()
 
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
+app.secret_key = 'Aditya Sonawane'
 
 
 def connect_to_db():
@@ -127,7 +127,7 @@ def logout():
 
 
 # Load YOLO model
-model_path = "D:/Vehicle Damage Detection/models/model weights/best.pt"
+model_path = "models/model weights/best.pt"
 model = YOLO(model_path)
 
 
@@ -144,22 +144,34 @@ def dashboard():
             flash('Invalid file type. Please upload an image.', 'error')
             return render_template('dashboard.html')
         
-        # Save the uploaded image
-        image_path = os.path.join('D:/Vehicle Damage Detection/static', 'uploaded_image.jpg')
-        print("File uploaded successfully")
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join('static', 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
         
+        # Generate unique filename to avoid overwriting
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Save the uploaded image with unique name
+        original_filename = f"uploaded_{timestamp}.jpg"
+        image_path = os.path.join(upload_dir, original_filename)
+        print("File uploaded successfully")
         file.save(image_path)
-        # print(f"Upload image path : {image_path}")
+        
         # Make predictions using YOLO
         result = model(image_path)
         detected_objects = result[0].boxes
         class_ids = [box.cls.item() for box in detected_objects]
         class_counts = Counter(class_ids)
-        # print(f"Class counts : {class_counts}")
-        # Save the image with detections
-        detected_image_path = os.path.join('D:/Vehicle Damage Detection/static', 'detected_image.jpg')
-        detected_image_path = result[0].save(detected_image_path)
-        print(f"Detected image path : {detected_image_path}")
+        
+        # Save the image with detections - use unique name
+        detected_filename = f"detected_{timestamp}.jpg"
+        detected_path = os.path.join(upload_dir, detected_filename)
+        
+        # Save the detected image
+        result[0].save(detected_path)
+        print(f"Detected image path : {detected_path}")
+        
         # Get the user's email from session
         user_email = session.get('user_email')
         print(user_email)
@@ -169,11 +181,14 @@ def dashboard():
 
         # Fetch part prices from the database
         part_prices = get_part_prices(user_email, class_counts)
-        # print(f"Part prices : {part_prices}")
-        return render_template('estimate.html', original_image='uploaded_image.jpg', detected_image='detected_image.jpg', part_prices=part_prices)
+        
+        # Pass relative paths to template (for static folder)
+        return render_template('estimate.html', 
+                             original_image=os.path.join('uploads', original_filename),
+                             detected_image=os.path.join('uploads', detected_filename), 
+                             part_prices=part_prices)
 
     return render_template('dashboard.html')
-
 
 def get_part_prices(email, class_counts):
     connection = connect_to_db()
@@ -189,24 +204,43 @@ def get_part_prices(email, class_counts):
 
                 car_brand = user_data['car_brand']
                 car_model = user_data['model']
+                print(f"Fetching prices for {car_brand} {car_model}")
 
                 # Fetch part prices
                 prices = {}
                 for class_id, count in class_counts.items():
                     part_name = get_part_name_from_id(class_id)
-                    # print(f"Parts name: {part_name}")
+                    print(f"Part name: {part_name}, Count: {count}")
+                    
                     if part_name:
+                        # Check if price exists for this car and part
                         cursor.execute(
                             "SELECT price FROM car_models WHERE brand = %s AND model = %s AND part = %s",
                             (car_brand, car_model, part_name)
                         )
                         price_data = cursor.fetchone()
-                        # print(f"Price data : {price_data}")
+                        
                         if price_data:
-                            price_per_part = price_data['price']
+                            price_per_part = float(price_data['price'])
                             total_price = price_per_part * count
-                            prices[part_name] = {'count': count, 'price': price_per_part, 'total': total_price}
-                # print(f"Prices : {prices}")
+                            prices[part_name] = {
+                                'count': count, 
+                                'price': price_per_part, 
+                                'total': total_price
+                            }
+                            print(f"Found price for {part_name}: ${price_per_part}")
+                        else:
+                            # Use default price if model-specific price not found
+                            default_price = 200.00  # Default fallback price
+                            total_price = default_price * count
+                            prices[part_name] = {
+                                'count': count, 
+                                'price': default_price, 
+                                'total': total_price,
+                                'note': 'Estimated (default price)'
+                            }
+                            print(f"Using default price for {part_name}: ${default_price}")
+                
                 return prices
         except connector.Error as e:
             print(f"Error executing query: {e}")

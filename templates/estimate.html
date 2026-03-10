@@ -173,8 +173,8 @@
     <div class="estimate-container">
         <h2>Quotation for Damage Recovery</h2>
         <div class="images">
-            <img src="{{ url_for('static', filename=original_image) }}" alt="Original Image">
-            <img src="{{ url_for('static', filename=detected_image) }}" alt="Detected Image">
+            <img src="{{ url_for('static', filename='uploads/uploaded_image.jpg') }}">
+            <img src="{{ url_for('static', filename='detected_image.jpg') }}" alt="Detected Image">
         </div>
         <div class="repair-costs">
             <h3>Estimated Repair Prices</h3>
@@ -199,7 +199,7 @@
                 </tbody>
             </table>
             <div class="total-cost">
-                Total Estimated Price: ₹{{ part_prices.values() | map(attribute='total') | sum }}
+                Total Estimated Price: ${{ part_prices.values() | map(attribute='total') | sum }}
             </div>            
         </div>
         <button class="print-button" onclick="window.print()">Print Quotation</button>
