@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workshop Triage Dispatch Queue - DamageVision</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+
+    <style>
+        body {
+            background-color: #0B0F19;
+            color: #F8FAFC;
+            min-height: 100vh;
+            padding: 30px 24px;
+            display: block;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+        .top-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'error' if category == 'error' else 'success' if category == 'success' else 'info' }}">
+                        <i class="fas fa-info-circle"></i> {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="top-nav">
+            <div>
+                <h1 style="font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-clipboard-list" style="color: #6366F1;"></i> Workshop Damage Triage Dispatch Queue
+                </h1>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">
+                    Technician active assignment board, SLA tracking, and resolution dispatcher
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                {% if session.get('is_admin') %}
+                <a href="{{ url_for('admin_triage') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-sliders-h"></i> Admin Triage Control
+                </a>
+                {% endif %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm">
+                    <i class="fas fa-camera"></i> App Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon rose">
+                    <i class="fas fa-fire"></i>
+                </div>
+                <div class="kpi-content">
+                    <div class="kpi-label">Critical Tier (75+)</div>
+                    <div class="kpi-value">{{ items | selectattr('priority', 'equalto', 'Critical') | list | length }}</div>
+                    <div class="kpi-trend" style="color: #F87171;">
+                        <i class="fas fa-user-shield"></i> Senior Master Tech required
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #FBBF24;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="kpi-content">
+                    <div class="kpi-label">High Priority</div>
+                    <div class="kpi-value">{{ items | selectattr('priority', 'equalto', 'High') | list | length }}</div>
+                    <div class="kpi-trend trend-neutral">
+                        <i class="fas fa-clock"></i> 12h SLA target
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon rose" style="background: rgba(220, 38, 38, 0.2); border: 1px solid #DC2626; color: #F87171;">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <div class="kpi-content">
+                    <div class="kpi-label">SLA Breached Alerts</div>
+                    <div class="kpi-value" style="color: #F87171;">
+                        {{ items | selectattr('sla_breached') | list | length }}
+                    </div>
+                    <div class="kpi-trend" style="color: #F87171;">
+                        <i class="fas fa-exclamation-circle"></i> Immediate action required
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon emerald">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div class="kpi-content">
+                    <div class="kpi-label">Completed Repairs</div>
+                    <div class="kpi-value">
+                        {{ items | selectattr('status', 'equalto', 'Completed') | list | length }}
+                    </div>
+                    <div class="kpi-trend trend-up">
+                        <i class="fas fa-thumbs-up"></i> Quality verified
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Triage Queue Table -->
+        <div class="glass-card">
+            <div class="card-header-flex">
+                <div class="card-title">
+                    <i class="fas fa-tasks"></i> Active Work Orders
+                </div>
+                <div>
+                    <input type="text" id="queueSearch" placeholder="Filter by vehicle, tech, status..." 
+                           style="background: #172036; border: 1px solid var(--border-subtle); color: #fff; padding: 7px 14px; border-radius: var(--radius-md); font-size: 0.85rem; width: 260px;">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="custom-table" id="queueTable">
+                    <thead>
+                        <tr>
+                            <th>Report</th>
+                            <th>Priority Tier</th>
+                            <th>Score</th>
+                            <th>Assigned Specialist</th>
+                            <th>SLA Deadline</th>
+                            <th>Current Status</th>
+                            <th>Quick Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #818CF8;">
+                                #{{ item.report_id }}
+                                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: sans-serif;">
+                                    {{ item.car_brand }} {{ item.car_model }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if item.priority == 'Critical' %}
+                                    <span class="badge badge-severe" style="font-weight: 800;">
+                                        <i class="fas fa-radiation"></i> CRITICAL
+                                    </span>
+                                {% elif item.priority == 'High' %}
+                                    <span class="badge badge-moderate" style="font-weight: 800;">
+                                        <i class="fas fa-exclamation-triangle"></i> HIGH
+                                    </span>
+                                {% elif item.priority == 'Medium' %}
+                                    <span class="badge badge-admin" style="font-weight: 800;">
+                                        <i class="fas fa-info-circle"></i> MEDIUM
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-minor" style="font-weight: 800;">
+                                        <i class="fas fa-check"></i> LOW
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="font-weight: 800; font-size: 1.05rem; color: #FFFFFF;">
+                                {{ item.triage_score }}
+                                <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">/100</span>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600; color: #FFFFFF; font-size: 0.88rem;">{{ item.assigned_to }}</div>
+                                <div style="font-size: 0.72rem; color: #38BDF8;">{{ item.technician_role }}</div>
+                            </td>
+                            <td>
+                                {% if item.sla_breached %}
+                                    <span class="badge badge-severe" style="font-size: 0.72rem;">
+                                        <i class="fas fa-bell"></i> BREACHED
+                                    </span>
+                                {% else %}
+                                    <div style="font-size: 0.82rem; color: #34D399; font-weight: 600;">
+                                        {{ item.sla_hours }}h Target
+                                    </div>
+                                {% endif %}
+                                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                                    {{ item.sla_deadline.strftime('%b %d, %H:%M') if item.sla_deadline else 'N/A' }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge" style="background: rgba(255, 255, 255, 0.08); color: #E2E8F0;">
+                                    {{ item.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <form action="{{ url_for('triage_advance_status', report_id=item.report_id) }}" method="POST" style="display: flex; gap: 6px;">
+                                    {% if item.status == 'Queued' %}
+                                        <button type="submit" name="new_status" value="In Progress" class="btn btn-outline btn-sm" style="color: #60A5FA; border-color: rgba(96, 165, 250, 0.4);">
+                                            <i class="fas fa-play"></i> Start Work
+                                        </button>
+                                    {% elif item.status == 'In Progress' %}
+                                        <button type="submit" name="new_status" value="Completed" class="btn btn-outline btn-sm" style="color: #34D399; border-color: rgba(16, 185, 129, 0.4);">
+                                            <i class="fas fa-check"></i> Mark Complete
+                                        </button>
+                                    {% else %}
+                                        <span style="font-size: 0.75rem; color: #34D399;">
+                                            <i class="fas fa-check-circle"></i> Resolved
+                                        </span>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('queueSearch').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#queueTable tbody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}User Directory{% endblock %}
+{% block page_title %}User Management Directory{% endblock %}
+{% block page_subtitle %}Manage system accounts, vehicle credentials, and administrator privileges{% endblock %}
+
+{% block content %}
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+    <div class="kpi-card">
+        <div class="kpi-icon indigo">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Total Users</div>
+            <div class="kpi-value">{{ users | length }}</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon cyan">
+            <i class="fas fa-user-shield"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">System Admins</div>
+            <div class="kpi-value">{{ users | selectattr('is_admin') | list | length }}</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon emerald">
+            <i class="fas fa-car"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Registered Vehicles</div>
+            <div class="kpi-value">{{ users | selectattr('vehicle_id') | list | length }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card">
+    <div class="card-header-flex">
+        <div class="card-title">
+            <i class="fas fa-id-card"></i> Registered User Accounts
+        </div>
+        <div>
+            <input type="text" id="userSearchInput" placeholder="Search by name, email, vehicle..." 
+                   style="background: #1F2937; border: 1px solid var(--border-subtle); color: #fff; padding: 7px 14px; border-radius: var(--radius-md); font-size: 0.85rem; width: 280px;">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table" id="usersTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Vehicle ID</th>
+                    <th>Car Brand / Model</th>
+                    <th>Contact Phone</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td style="font-family: 'JetBrains Mono', monospace; color: #818CF8;">
+                        #{{ u.id }}
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #FFFFFF;">{{ u.name or 'N/A' }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.email }}</div>
+                    </td>
+                    <td style="font-family: 'JetBrains Mono', monospace; color: #38BDF8;">
+                        {{ u.vehicle_id or 'Not Registered' }}
+                    </td>
+                    <td>
+                        <span style="font-weight: 600; color: #E0E7FF;">{{ u.car_brand or '-' }}</span> 
+                        <span style="color: var(--text-secondary);">{{ u.model or '' }}</span>
+                    </td>
+                    <td style="color: var(--text-secondary);">
+                        {{ u.contact_number or '-' }}
+                    </td>
+                    <td>
+                        {% if u.is_admin %}
+                            <span class="badge badge-admin"><i class="fas fa-shield-alt"></i> Admin</span>
+                        {% else %}
+                            <span class="badge badge-user"><i class="fas fa-user"></i> User</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form action="{{ url_for('admin_toggle_user_role', user_id=u.id) }}" method="POST" style="display: inline;">
+                            {% if u.is_admin %}
+                                {% if session.get('user_email') != u.email %}
+                                    <button type="submit" class="btn btn-outline btn-sm" style="color: #F87171; border-color: rgba(239, 68, 68, 0.4);" title="Demote from Admin">
+                                        <i class="fas fa-user-minus"></i> Demote
+                                    </button>
+                                {% else %}
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(You)</span>
+                                {% endif %}
+                            {% else %}
+                                <button type="submit" class="btn btn-outline btn-sm" style="color: #34D399; border-color: rgba(16, 185, 129, 0.4);" title="Promote to Admin">
+                                    <i class="fas fa-user-shield"></i> Make Admin
+                                </button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('userSearchInput').addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#usersTable tbody tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(term) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

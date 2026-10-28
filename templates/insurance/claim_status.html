@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Claim Status & Tracker - DamageVision</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-body: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            --card-bg: rgba(30, 41, 59, 0.9);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .tracker-container {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .header-bar h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #FFFFFF;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2563EB;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1D4ED8;
+        }
+
+        .btn-pdf {
+            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-pdf:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+        }
+
+        .claim-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 28px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .claim-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 18px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .claim-ref {
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: #60A5FA;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .status-Approved {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .status-Submitted, .status-Draft {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        .status-Under\ Review {
+            background: rgba(245, 158, 11, 0.2);
+            color: #FBBF24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .status-Rejected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin: 28px 0;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 30px;
+            right: 30px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1;
+        }
+
+        .step-item {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            flex: 1;
+        }
+
+        .step-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #1E293B;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .step-item.active .step-circle {
+            background: #2563EB;
+            border-color: #60A5FA;
+            color: white;
+            box-shadow: 0 0 14px rgba(37, 99, 235, 0.5);
+        }
+
+        .step-item.completed .step-circle {
+            background: #10B981;
+            border-color: #34D399;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .step-item.active .step-label {
+            color: #FFFFFF;
+        }
+
+        /* Details & Financial Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .info-item .label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .info-item .val {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        /* Timeline list */
+        .timeline-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .timeline-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timeline-event {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .timeline-event:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 14px;
+            top: 28px;
+            bottom: -8px;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .event-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(37, 99, 235, 0.2);
+            border: 1px solid rgba(37, 99, 235, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #60A5FA;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .event-content {
+            flex: 1;
+        }
+
+        .event-heading {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .event-time {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .event-desc {
+            font-size: 0.82rem;
+            color: #CBD5E1;
+            line-height: 1.4;
+        }
+
+        .auto-badge-box {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .auto-badge-box i {
+            font-size: 1.5rem;
+            color: #34D399;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--card-bg);
+            border-radius: 18px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="tracker-container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #34D399; padding: 12px 18px; border-radius: 10px; margin-bottom: 20px;">
+                        <i class="fas fa-check-circle"></i> {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="header-bar">
+            <div>
+                <h1><i class="fas fa-file-invoice"></i> Insurance Claim Tracker</h1>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Live tracking of submitted claims, AI verifications, and settlement payouts</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="{{ url_for('claim_start') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> File New Claim
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn" style="background: rgba(255, 255, 255, 0.1); color: #fff;">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+
+        {% if claims %}
+            {% for c in claims %}
+            <div class="claim-card">
+                <div class="claim-top">
+                    <div>
+                        <div class="claim-ref">{{ c.claim_number }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+                            Filed on {{ c.created_at.strftime('%B %d, %Y at %H:%M') if c.created_at else 'Recent' }} &bull; Policy #{{ c.policy_number }}
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span class="status-badge status-{{ c.status | replace(' ', '') }}">
+                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i> {{ c.status }}
+                        </span>
+                        <a href="{{ url_for('claim_download_pdf', claim_number=c.claim_number) }}" class="btn btn-pdf btn-sm" target="_blank">
+                            <i class="fas fa-file-pdf"></i> Download Official PDF
+                        </a>
+                    </div>
+                </div>
+
+                {% if c.is_auto_approved %}
+                <div class="auto-badge-box">
+                    <i class="fas fa-bolt"></i>
+                    <div>
+                        <div style="font-weight: 700; color: #34D399; font-size: 0.95rem;">⚡ AI Fast-Track Auto-Approval Granted</div>
+                        <div style="font-size: 0.82rem; color: #A7F3D0;">
+                            Claim was automatically approved because estimated repair cost (₹{{ "{:,.2f}".format(c.total_damage_cost) }}) is under ₹5,000 and all detected damages are classified as Minor.
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- PROGRESS TRACKER STEPS -->
+                <div class="progress-steps">
+                    <div class="step-item completed">
+                        <div class="step-circle"><i class="fas fa-check"></i></div>
+                        <div class="step-label">1. Submitted</div>
+                    </div>
+                    <div class="step-item {% if c.status in ['Under Review', 'Approved', 'Rejected'] %}completed{% else %}active{% endif %}">
+                        <div class="step-circle">
+                            {% if c.status in ['Approved', 'Rejected'] %}<i class="fas fa-check"></i>{% else %}<i class="fas fa-search"></i>{% endif %}
+                        </div>
+                        <div class="step-label">2. Under Review</div>
+                    </div>
+                    <div class="step-item {% if c.status in ['Approved', 'Rejected'] %}completed active{% endif %}">
+                        <div class="step-circle">
+                            {% if c.status == 'Approved' %}
+                                <i class="fas fa-check-circle" style="color: #34D399;"></i>
+                            {% elif c.status == 'Rejected' %}
+                                <i class="fas fa-times-circle" style="color: #F87171;"></i>
+                            {% else %}
+                                3
+                            {% endif %}
+                        </div>
+                        <div class="step-label">3. Settlement Decision</div>
+                    </div>
+                </div>
+
+                <!-- FINANCIAL SUMMARY TILES -->
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="label">Total Repair Cost</div>
+                        <div class="val">₹{{ "{:,.2f}".format(c.total_damage_cost) }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="label">Policy Plan ({{ c.policy_type }})</div>
+                        <div class="val" style="color: #60A5FA;">{{ c.coverage_percentage }}% Coverage</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="label">Insurer Payout</div>
+                        <div class="val" style="color: #34D399;">₹{{ "{:,.2f}".format(c.covered_amount) }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="label">Out-of-Pocket Deductible</div>
+                        <div class="val" style="color: #F87171;">₹{{ "{:,.2f}".format(c.out_of_pocket) }}</div>
+                    </div>
+                </div>
+
+                <!-- TIMELINE EVENTS LOG -->
+                <div class="timeline-section">
+                    <div class="timeline-title">
+                        <i class="fas fa-stream"></i> Claim Audit & Processing Log
+                    </div>
+                    {% if c.timeline %}
+                        {% for t in c.timeline %}
+                        <div class="timeline-event">
+                            <div class="event-icon">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="event-content">
+                                <div class="event-heading">{{ t.title }}</div>
+                                <div class="event-time">
+                                    {{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else 'Recent' }} &bull; Logged by {{ t.created_by }}
+                                </div>
+                                <div class="event-desc">{{ t.description }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: var(--text-muted); font-size: 0.85rem;">No timeline updates available yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-file-invoice fa-3x" style="color: var(--text-muted); margin-bottom: 16px;"></i>
+                <h2>No Insurance Claims Found</h2>
+                <p style="color: var(--text-muted); margin-top: 8px; margin-bottom: 24px;">
+                    You have not submitted any insurance claims yet. Run a vehicle scan to generate a quotation and file your claim in seconds.
+                </p>
+                <a href="{{ url_for('claim_start') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> File Your First Claim
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

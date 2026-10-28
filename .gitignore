@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+
+# Datasets and model training runs
+datasets/
+runs/
+
+# Runtime uploads and generated test detection images
+static/uploads/*.jpg
+static/uploads/*.jpeg
+static/uploads/*.png
+!static/uploads/.gitkeep
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+*.swp
+
+# Environment / Secrets (if applicable)
+.env

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Insurance Claim - DamageVision</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2563EB;
+            --primary-hover: #1D4ED8;
+            --bg-body: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .claim-container {
+            max-width: 960px;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 36px;
+            margin-top: 20px;
+        }
+
+        .header-title {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .header-title h1 {
+            font-size: 1.85rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #60A5FA 0%, #A78BFA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: #FFFFFF;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #60A5FA;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+        }
+
+        /* Coverage Selector Cards */
+        .policy-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 6px;
+        }
+
+        .policy-card {
+            border: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .policy-card:hover {
+            border-color: rgba(96, 165, 250, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .policy-card.selected {
+            border-color: #60A5FA;
+            background: rgba(37, 99, 235, 0.15);
+            box-shadow: 0 0 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .policy-card input[type="radio"] {
+            display: none;
+        }
+
+        .policy-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #FFFFFF;
+            margin-bottom: 4px;
+        }
+
+        .policy-pct {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #34D399;
+        }
+
+        .policy-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Financial Live Preview Box */
+        .preview-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 14px;
+            padding: 20px;
+            margin-top: 24px;
+            margin-bottom: 24px;
+        }
+
+        .preview-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #60A5FA;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .calc-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.88rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .calc-row:last-child {
+            border-bottom: none;
+            padding-top: 10px;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+            transition: color 0.2s;
+        }
+
+        .nav-back:hover {
+            color: #FFFFFF;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .policy-options { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="claim-container">
+        <a href="{{ url_for('dashboard') }}" class="nav-back">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+
+        <div class="header-title">
+            <h1><i class="fas fa-shield-alt"></i> Insurance Claim Assistant</h1>
+            <p>Automated claim filing, coverage calculation, and instant AI auto-approval assessment</p>
+        </div>
+
+        <form action="{{ url_for('claim_submit') }}" method="POST">
+            <!-- Hidden inputs -->
+            <input type="hidden" name="report_id" id="report_id" value="{{ report.id if report else '' }}">
+            <input type="hidden" name="total_cost" id="total_cost" value="{{ report.total_cost if report else '2000' }}">
+
+            <!-- 1. Assessment Selection & Details -->
+            <div class="form-group">
+                <label class="form-label">Associated Vehicle Damage Assessment</label>
+                {% if report %}
+                    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 700; color: #FFFFFF; font-size: 1.05rem;">
+                                Report #{{ report.id }} &mdash; {{ report.car_brand }} {{ report.car_model }}
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+                                Scanned: {{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else 'Recent' }}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Estimated Damage</div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: #34D399;">
+                                ₹{{ "{:,.2f}".format(report.total_cost) }}
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <select name="report_id_select" id="reportSelect" class="form-control" onchange="updateReportDetails(this)">
+                        {% for r in available_reports %}
+                            <option value="{{ r.id }}" data-cost="{{ r.total_cost }}" data-brand="{{ r.car_brand }}" data-model="{{ r.car_model }}">
+                                Scan #{{ r.id }} - {{ r.car_brand }} {{ r.car_model }} (₹{{ "{:,.2f}".format(r.total_cost) }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+            </div>
+
+            <!-- 2. Policyholder Information Grid -->
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Policyholder Full Name</label>
+                    <input type="text" class="form-control" name="user_name" value="{{ user_info.name if user_info else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Policyholder Email</label>
+                    <input type="email" class="form-control" name="user_email" value="{{ session.get('user_email', '') }}" readonly>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Insurance Provider</label>
+                    <input type="text" class="form-control" name="insurance_provider" value="{{ user_info.insurance_provider if user_info and user_info.insurance_provider else 'Royal Sundaram General Insurance' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Policy Reference Number</label>
+                    <input type="text" class="form-control" name="policy_number" value="{{ user_info.policy_number if user_info and user_info.policy_number else 'POL-2026-889901' }}" required>
+                </div>
+            </div>
+
+            <!-- 3. Policy Coverage Type Selector -->
+            <div class="form-group">
+                <label class="form-label">Select Coverage Plan</label>
+                <div class="policy-options">
+                    <label class="policy-card {% if (user_info.policy_type if user_info else '') == 'Basic' %}selected{% endif %}" onclick="selectPlan('Basic', 60)">
+                        <input type="radio" name="policy_type" value="Basic" {% if (user_info.policy_type if user_info else '') == 'Basic' %}checked{% endif %}>
+                        <div class="policy-name">Basic Plan</div>
+                        <div class="policy-pct">60%</div>
+                        <div class="policy-desc">40% Out-of-pocket deductible</div>
+                    </label>
+
+                    <label class="policy-card {% if (user_info.policy_type if user_info else 'Standard') == 'Standard' or not user_info.policy_type %}selected{% endif %}" onclick="selectPlan('Standard', 80)">
+                        <input type="radio" name="policy_type" value="Standard" {% if (user_info.policy_type if user_info else 'Standard') == 'Standard' or not user_info.policy_type %}checked{% endif %}>
+                        <div class="policy-name">Standard Plan</div>
+                        <div class="policy-pct">80%</div>
+                        <div class="policy-desc">20% Out-of-pocket deductible</div>
+                    </label>
+
+                    <label class="policy-card {% if (user_info.policy_type if user_info else '') == 'Premium' %}selected{% endif %}" onclick="selectPlan('Premium', 90)">
+                        <input type="radio" name="policy_type" value="Premium" {% if (user_info.policy_type if user_info else '') == 'Premium' %}checked{% endif %}>
+                        <div class="policy-name">Premium Plan</div>
+                        <div class="policy-pct">90%</div>
+                        <div class="policy-desc">10% Out-of-pocket deductible</div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 4. Incident Incident Location & Details -->
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Incident Date</label>
+                    <input type="date" class="form-control" name="incident_date" id="incidentDate" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Incident Location</label>
+                    <input type="text" class="form-control" name="incident_location" placeholder="e.g., Highway 101, Exit 24 or Downtown Sector" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Incident Circumstances & Notes</label>
+                <textarea class="form-control" name="incident_description" rows="3" placeholder="Describe how the accident/damage occurred (e.g., vehicle collided with guardrail during rainy conditions)..." required></textarea>
+            </div>
+
+            <!-- 5. Real-Time Financial Settlement Preview -->
+            <div class="preview-box">
+                <div class="preview-title">
+                    <i class="fas fa-calculator"></i> Real-Time Settlement Calculation
+                </div>
+                <div class="calc-row">
+                    <span style="color: var(--text-muted);">Total Repair Cost Assessed:</span>
+                    <span id="previewTotalCost" style="font-weight: 700;">₹0.00</span>
+                </div>
+                <div class="calc-row">
+                    <span style="color: var(--text-muted);">Policy Coverage Rate (<span id="previewPlanName">Standard</span>):</span>
+                    <span id="previewRate" style="color: #60A5FA; font-weight: 700;">80%</span>
+                </div>
+                <div class="calc-row">
+                    <span style="color: var(--text-muted);">Insurer Estimated Payout:</span>
+                    <span id="previewCovered" style="color: #34D399; font-weight: 700;">₹0.00</span>
+                </div>
+                <div class="calc-row">
+                    <span>Estimated Policyholder Out-of-Pocket:</span>
+                    <span id="previewOutOfPocket" style="color: #F87171;">₹0.00</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="fas fa-paper-plane"></i> Submit Official Insurance Claim
+            </button>
+        </form>
+    </div>
+
+    <script>
+        let currentPct = 80;
+        let currentCost = parseFloat(document.getElementById('total_cost').value || 0);
+
+        // Set default date to today
+        document.getElementById('incidentDate').value = new Date().toISOString().split('T')[0];
+
+        function selectPlan(plan, pct) {
+            currentPct = pct;
+            document.querySelectorAll('.policy-card').forEach(c => c.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            document.querySelector(`input[name="policy_type"][value="${plan}"]`).checked = true;
+            document.getElementById('previewPlanName').innerText = plan;
+            document.getElementById('previewRate').innerText = pct + '%';
+            recalculate();
+        }
+
+        function recalculate() {
+            const covered = (currentCost * (currentPct / 100.0));
+            const oop = Math.max(0, currentCost - covered);
+
+            document.getElementById('previewTotalCost').innerText = '₹' + currentCost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('previewCovered').innerText = '₹' + covered.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('previewOutOfPocket').innerText = '₹' + oop.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function updateReportDetails(selectElem) {
+            const opt = selectElem.options[selectElem.selectedIndex];
+            currentCost = parseFloat(opt.dataset.cost || 0);
+            document.getElementById('total_cost').value = currentCost;
+            document.getElementById('report_id').value = opt.value;
+            recalculate();
+        }
+
+        // Initialize calculation on load
+        recalculate();
+    </script>
+</body>
+</html>

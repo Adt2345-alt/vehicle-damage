@@ -1,0 +1,336 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Damage Triage & Prioritization{% endblock %}
+{% block page_title %}Damage Triage & SLA Monitor{% endblock %}
+{% block page_subtitle %}Algorithmic priority scoring (0-100), automated technician routing, and live SLA breach enforcement{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('triage_queue_view') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-clipboard-list"></i> Technician Queue View
+</a>
+<a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus"></i> New Scan
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- KPI METRIC CARDS -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon rose">
+            <i class="fas fa-radiation"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Critical Priority (75+)</div>
+            <div class="kpi-value">{{ stats.critical_count }}</div>
+            <div class="kpi-trend" style="color: #F87171;">
+                <i class="fas fa-user-shield"></i> <span>Auto-routed to Senior Master Tech</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3);">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">High Priority (50-74)</div>
+            <div class="kpi-value">{{ stats.high_count }}</div>
+            <div class="kpi-trend trend-neutral">
+                <i class="fas fa-wrench"></i> <span>Assigned to Panel Specialist</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon rose" style="background: rgba(220, 38, 38, 0.2); border: 1px solid #DC2626; color: #F87171;">
+            <i class="fas fa-hourglass-end"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">SLA Breached Alerts</div>
+            <div class="kpi-value" style="color: #F87171;">{{ stats.breached_count }}</div>
+            <div class="kpi-trend" style="color: #F87171;">
+                <i class="fas fa-bell"></i> <span>Requires immediate escalation</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon indigo">
+            <i class="fas fa-tachometer-alt"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Avg Triage Score</div>
+            <div class="kpi-value">{{ stats.avg_score }}/100</div>
+            <div class="kpi-trend trend-up">
+                <i class="fas fa-calculator"></i> <span>Composite multi-factor index</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="charts-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <!-- Priority Donut Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-pie-chart"></i> Priority Tiers
+            </div>
+            <span class="badge badge-admin">Algorithm</span>
+        </div>
+        <div class="chart-container" style="height: 240px;">
+            <canvas id="priorityChart"></canvas>
+        </div>
+    </div>
+
+    <!-- SLA Compliance Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-clock"></i> SLA Compliance
+            </div>
+            <span class="badge badge-admin">Service Targets</span>
+        </div>
+        <div class="chart-container" style="height: 240px;">
+            <canvas id="slaChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Technician Workload Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-hard-hat"></i> Workload by Tech
+            </div>
+            <span class="badge badge-admin">Routing</span>
+        </div>
+        <div class="chart-container" style="height: 240px;">
+            <canvas id="techWorkloadChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- TRIAGE QUEUE TABLE -->
+<div class="glass-card">
+    <div class="card-header-flex">
+        <div class="card-title">
+            <i class="fas fa-tasks"></i> Active Damage Triage Queue
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="triageSearchInput" placeholder="Filter by vehicle, tech, priority..." 
+                   style="background: #1F2937; border: 1px solid var(--border-subtle); color: #fff; padding: 7px 14px; border-radius: var(--radius-md); font-size: 0.85rem; width: 260px;">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table" id="triageTable">
+            <thead>
+                <tr>
+                    <th>Report ID</th>
+                    <th>Priority</th>
+                    <th>Triage Score</th>
+                    <th>Assigned Specialist</th>
+                    <th>SLA Target & Status</th>
+                    <th>Queue Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if triage_items %}
+                    {% for item in triage_items %}
+                    <tr>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #818CF8;">
+                            #{{ item.report_id }}
+                            <div style="font-size: 0.72rem; color: var(--text-muted); font-family: sans-serif;">
+                                {{ item.car_brand }} {{ item.car_model }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.priority == 'Critical' %}
+                                <span class="badge badge-severe" style="padding: 4px 10px; font-weight: 800;">
+                                    <i class="fas fa-radiation"></i> CRITICAL
+                                </span>
+                            {% elif item.priority == 'High' %}
+                                <span class="badge badge-moderate" style="padding: 4px 10px; font-weight: 800;">
+                                    <i class="fas fa-exclamation-triangle"></i> HIGH
+                                </span>
+                            {% elif item.priority == 'Medium' %}
+                                <span class="badge badge-admin" style="padding: 4px 10px; font-weight: 800;">
+                                    <i class="fas fa-info-circle"></i> MEDIUM
+                                </span>
+                            {% else %}
+                                <span class="badge badge-minor" style="padding: 4px 10px; font-weight: 800;">
+                                    <i class="fas fa-check"></i> LOW
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="font-weight: 800; font-size: 1rem; color: #FFFFFF; min-width: 28px;">
+                                    {{ item.triage_score }}
+                                </div>
+                                <div style="flex: 1; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 999px; overflow: hidden; max-width: 80px;">
+                                    <div style="height: 100%; width: {{ item.triage_score }}%; background: {% if item.triage_score >= 75 %}#EF4444{% elif item.triage_score >= 50 %}#F59E0B{% elif item.triage_score >= 25 %}#6366F1{% else %}#10B981{% endif %};"></div>
+                                </div>
+                            </div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                                ₹{{ "{:,.0f}".format(item.total_cost) }} est.
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: #FFFFFF; font-size: 0.88rem;">
+                                {{ item.assigned_to }}
+                            </div>
+                            <div style="font-size: 0.72rem; color: #38BDF8;">
+                                {{ item.technician_role }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.sla_breached %}
+                                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 6px; background: rgba(239, 68, 68, 0.2); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.75rem; font-weight: 800;">
+                                    <i class="fas fa-bell"></i> SLA BREACHED
+                                </div>
+                            {% else %}
+                                <div style="font-size: 0.82rem; color: #34D399; font-weight: 600;">
+                                    <i class="fas fa-stopwatch"></i> {{ item.sla_hours }}h Target
+                                </div>
+                            {% endif %}
+                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                                Due: {{ item.sla_deadline.strftime('%b %d, %H:%M') if item.sla_deadline else 'N/A' }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: rgba(255, 255, 255, 0.08); color: #E2E8F0;">
+                                {{ item.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin_triage_detail', report_id=item.report_id) }}" class="btn btn-outline btn-sm" style="color: #818CF8; border-color: rgba(99, 102, 241, 0.3);">
+                                <i class="fas fa-sliders-h"></i> Inspect &amp; Reassign
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            No active items in triage queue.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Priority Donut Chart
+    const pCtx = document.getElementById('priorityChart').getContext('2d');
+    new Chart(pCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Critical (75+)', 'High (50-74)', 'Medium (25-49)', 'Low (<25)'],
+            datasets: [{
+                data: [
+                    {{ stats.critical_count }},
+                    {{ stats.high_count }},
+                    {{ stats.medium_count }},
+                    {{ stats.low_count }}
+                ],
+                backgroundColor: ['#EF4444', '#F59E0B', '#6366F1', '#10B981'],
+                borderColor: '#131B2E',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 10 }, padding: 8 }
+                }
+            }
+        }
+    });
+
+    // 2. SLA Compliance Gauge
+    const slaCtx = document.getElementById('slaChart').getContext('2d');
+    new Chart(slaCtx, {
+        type: 'pie',
+        data: {
+            labels: ['On-Time Compliant', 'SLA Breached'],
+            datasets: [{
+                data: [{{ stats.compliant_count }}, {{ stats.breached_count }}],
+                backgroundColor: ['#10B981', '#EF4444'],
+                borderColor: '#131B2E',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 10 }, padding: 8 }
+                }
+            }
+        }
+    });
+
+    // 3. Technician Workload Bar Chart
+    const techCtx = document.getElementById('techWorkloadChart').getContext('2d');
+    new Chart(techCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_tech.labels | tojson }},
+            datasets: [{
+                label: 'Assigned Scans',
+                data: {{ chart_tech.data | tojson }},
+                backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#9CA3AF',
+                        font: { size: 9 },
+                        callback: function(val) {
+                            const lbl = this.getLabelForValue(val);
+                            return lbl.split(' - ')[0] || lbl;
+                        }
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#9CA3AF', font: { size: 9 }, precision: 0 },
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                }
+            }
+        }
+    });
+
+    // Search filter
+    document.getElementById('triageSearchInput').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#triageTable tbody tr');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(term) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}

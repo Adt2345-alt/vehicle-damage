@@ -1,0 +1,173 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Insurance Claims Desk{% endblock %}
+{% block page_title %}Insurance Claims Management{% endblock %}
+{% block page_subtitle %}Review incoming claims, fast-track auto-approvals, update settlement decisions, and export reports{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('claim_start') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-plus"></i> Submit New Claim
+</a>
+<a href="{{ url_for('admin_export_csv') }}" class="btn btn-success btn-sm">
+    <i class="fas fa-file-csv"></i> Export Data
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon indigo">
+            <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Total Claims Filed</div>
+            <div class="kpi-value">{{ claims | length }}</div>
+            <div class="kpi-trend trend-neutral">
+                <i class="fas fa-clock"></i> <span>All active policies</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon emerald">
+            <i class="fas fa-bolt"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Auto-Approved Claims</div>
+            <div class="kpi-value">{{ claims | selectattr('is_auto_approved') | list | length }}</div>
+            <div class="kpi-trend trend-up">
+                <i class="fas fa-check-circle"></i> <span>Cost &lt; ₹5k &amp; Minor Damage</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon cyan">
+            <i class="fas fa-rupee-sign"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Total Payout Liability</div>
+            <div class="kpi-value">₹{{ "{:,.2f}".format(claims | map(attribute='covered_amount') | sum) }}</div>
+            <div class="kpi-trend trend-neutral">
+                <i class="fas fa-shield-alt"></i> <span>Insurer coverage liability</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon rose">
+            <i class="fas fa-hourglass-half"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Pending Review</div>
+            <div class="kpi-value">{{ claims | selectattr('status', 'equalto', 'Under Review') | list | length + claims | selectattr('status', 'equalto', 'Submitted') | list | length }}</div>
+            <div class="kpi-trend" style="color: #FBBF24;">
+                <i class="fas fa-exclamation-triangle"></i> <span>Awaiting adjuster action</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card">
+    <div class="card-header-flex">
+        <div class="card-title">
+            <i class="fas fa-list-alt"></i> Insurance Claims Registry
+        </div>
+        <div>
+            <input type="text" id="claimsSearchInput" placeholder="Search by claim #, user, policy..." 
+                   style="background: #1F2937; border: 1px solid var(--border-subtle); color: #fff; padding: 7px 14px; border-radius: var(--radius-md); font-size: 0.85rem; width: 280px;">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table" id="claimsTable">
+            <thead>
+                <tr>
+                    <th>Claim #</th>
+                    <th>Date</th>
+                    <th>Policyholder</th>
+                    <th>Policy Plan</th>
+                    <th>Repair Cost</th>
+                    <th>Insurer Payout</th>
+                    <th>Status & Actions</th>
+                    <th>PDF</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if claims %}
+                    {% for c in claims %}
+                    <tr>
+                        <td>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #60A5FA;">
+                                {{ c.claim_number }}
+                            </div>
+                            {% if c.is_auto_approved %}
+                                <span class="badge badge-minor" style="font-size: 0.65rem; margin-top: 4px;">
+                                    ⚡ Auto-Approved
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="color: var(--text-secondary); white-space: nowrap; font-size: 0.8rem;">
+                            {{ c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else 'Recent' }}
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: #FFFFFF;">{{ c.user_name or 'Policyholder' }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ c.user_email }}</div>
+                            <div style="font-size: 0.72rem; color: #818CF8; font-family: monospace;">{{ c.policy_number }}</div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600; color: #E0E7FF;">{{ c.policy_type }}</span>
+                            <div style="font-size: 0.75rem; color: #34D399;">{{ c.coverage_percentage }}% covered</div>
+                        </td>
+                        <td style="font-weight: 700; color: #FFFFFF;">
+                            ₹{{ "{:,.2f}".format(c.total_damage_cost) }}
+                        </td>
+                        <td style="font-weight: 700; color: #34D399;">
+                            ₹{{ "{:,.2f}".format(c.covered_amount) }}
+                            <div style="font-size: 0.72rem; color: #F87171;">OOP: ₹{{ "{:,.2f}".format(c.out_of_pocket) }}</div>
+                        </td>
+                        <td>
+                            <form action="{{ url_for('admin_update_claim_status', claim_id=c.id) }}" method="POST" style="display: flex; gap: 6px; align-items: center;">
+                                <select name="status" class="form-control" style="padding: 5px 8px; font-size: 0.8rem; width: auto; background: #172036; border: 1px solid var(--border-subtle); color: #fff; border-radius: 6px;">
+                                    <option value="Submitted" {% if c.status == 'Submitted' %}selected{% endif %}>Submitted</option>
+                                    <option value="Under Review" {% if c.status == 'Under Review' %}selected{% endif %}>Under Review</option>
+                                    <option value="Approved" {% if c.status == 'Approved' %}selected{% endif %}>Approved</option>
+                                    <option value="Rejected" {% if c.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                                </select>
+                                <button type="submit" class="btn btn-outline btn-sm" title="Save Status">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('claim_download_pdf', claim_number=c.claim_number) }}" class="btn btn-outline btn-sm" style="color: #F87171; border-color: rgba(239, 68, 68, 0.4);" target="_blank" title="Download PDF Report">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            No insurance claims filed yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('claimsSearchInput').addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#claimsTable tbody tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(term) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Dashboard Overview{% endblock %}
+{% block page_title %}Operational Dashboard{% endblock %}
+{% block page_subtitle %}Live snapshot of damage detections, severe incidents, and repair estimates{% endblock %}
+
+{% block content %}
+<!-- KPI METRIC CARDS -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon indigo">
+            <i class="fas fa-camera-retro"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Total Damage Scans</div>
+            <div class="kpi-value">{{ stats.total_reports }}</div>
+            <div class="kpi-trend trend-up">
+                <i class="fas fa-arrow-up"></i> <span>+{{ stats.recent_week_reports }} this week</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon emerald">
+            <i class="fas fa-rupee-sign"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Estimated Repairs</div>
+            <div class="kpi-value">₹{{ "{:,.2f}".format(stats.total_cost) }}</div>
+            <div class="kpi-trend trend-up">
+                <i class="fas fa-calculator"></i> <span>Avg ₹{{ "{:,.2f}".format(stats.avg_report_cost) }} / report</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon cyan">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Registered Users</div>
+            <div class="kpi-value">{{ stats.total_users }}</div>
+            <div class="kpi-trend trend-neutral">
+                <i class="fas fa-shield-alt"></i> <span>{{ stats.admin_count }} Administrators</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon rose">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Severe Damage Cases</div>
+            <div class="kpi-value">{{ stats.severe_count }}</div>
+            <div class="kpi-trend" style="color: #F87171;">
+                <i class="fas fa-fire"></i> <span>{{ stats.severe_percentage }}% of all detections</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CHARTS PREVIEW ROW -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-chart-area"></i> Daily Vehicle Uploads
+            </div>
+            <a href="{{ url_for('admin_analytics') }}" class="btn btn-outline btn-sm">Full Analytics &rarr;</a>
+        </div>
+        <div class="chart-container">
+            <canvas id="dailyUploadsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-pie-chart"></i> Severity Breakdown
+            </div>
+            <span class="badge badge-admin">YOLOv8 Classified</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="severityPieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- RECENT REPORTS TABLE -->
+<div class="glass-card">
+    <div class="card-header-flex">
+        <div class="card-title">
+            <i class="fas fa-history"></i> Recent Vehicle Damage Assessments
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('admin_reports') }}" class="btn btn-outline btn-sm">View All ({{ stats.total_reports }})</a>
+            <a href="{{ url_for('admin_export_csv') }}" class="btn btn-success btn-sm">
+                <i class="fas fa-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>User / Email</th>
+                    <th>Vehicle</th>
+                    <th>Detected Parts & Severities</th>
+                    <th>Total Cost</th>
+                    <th>Thumbnails</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if recent_reports %}
+                    {% for report in recent_reports %}
+                    <tr>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #818CF8;">
+                            #{{ report.id }}
+                        </td>
+                        <td style="color: var(--text-secondary); white-space: nowrap;">
+                            {{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else 'Recent' }}
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: #FFFFFF;">{{ report.user_name or 'User' }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ report.user_email }}</div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600; color: #E0E7FF;">{{ report.car_brand }}</span> 
+                            <span style="color: var(--text-secondary);">{{ report.car_model }}</span>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                {% if report.parts_summary %}
+                                    {% for p in report.parts_summary %}
+                                        <span class="badge {{ p.badge_class }}">
+                                            {{ p.part_name }} ({{ p.severity }})
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-size: 0.8rem;">No parts detected</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="font-weight: 700; color: #34D399; font-size: 0.95rem;">
+                            ₹{{ "{:,.2f}".format(report.total_cost) }}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 6px;">
+                                {% if report.detected_image %}
+                                    <a href="{{ url_for('static', filename=report.detected_image) }}" target="_blank" title="View YOLO Detection">
+                                        <img src="{{ url_for('static', filename=report.detected_image) }}" class="img-thumb" alt="Detected">
+                                    </a>
+                                {% endif %}
+                                {% if report.original_image %}
+                                    <a href="{{ url_for('static', filename=report.original_image) }}" target="_blank" title="View Original Image">
+                                        <img src="{{ url_for('static', filename=report.original_image) }}" class="img-thumb" alt="Original">
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                            No damage reports found. Run a new scan from the dashboard!
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Daily Uploads Chart
+    const dailyCtx = document.getElementById('dailyUploadsChart').getContext('2d');
+    const dailyLabels = {{ chart_daily.labels | tojson }};
+    const dailyData = {{ chart_daily.data | tojson }};
+
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [{
+                label: 'Scans & Uploads',
+                data: dailyData,
+                borderColor: '#6366F1',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.35,
+                pointBackgroundColor: '#6366F1',
+                pointBorderColor: '#FFFFFF',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1F2937',
+                    titleColor: '#F9FAFB',
+                    bodyColor: '#E5E7EB',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 10,
+                    displayColors: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 }, precision: 0 }
+                }
+            }
+        }
+    });
+
+    // 2. Severity Pie Chart
+    const severityCtx = document.getElementById('severityPieChart').getContext('2d');
+    const sevData = {{ chart_severity.data | tojson }};
+
+    new Chart(severityCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Minor (×0.5)', 'Moderate (×1.0)', 'Severe (×1.8)'],
+            datasets: [{
+                data: [sevData.Minor || 0, sevData.Moderate || 0, sevData.Severe || 0],
+                backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+                borderColor: '#131B2E',
+                borderWidth: 3,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#D1D5DB',
+                        font: { family: 'Plus Jakarta Sans', size: 11 },
+                        padding: 14,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#1F2937',
+                    titleColor: '#F9FAFB',
+                    bodyColor: '#E5E7EB',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 10
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

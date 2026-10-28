@@ -1,0 +1,316 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Analytics & Metrics{% endblock %}
+{% block page_title %}Damage Detection Analytics{% endblock %}
+{% block page_subtitle %}Comprehensive visual intelligence on damage severity, top damaged parts, and cost distributions{% endblock %}
+
+{% block content %}
+<!-- ANALYTICS HIGHLIGHTS -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon indigo">
+            <i class="fas fa-cubes"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Total Parts Inspected</div>
+            <div class="kpi-value">{{ analytics_summary.total_detections }}</div>
+            <div class="kpi-trend trend-up">
+                <i class="fas fa-check-circle"></i> <span>Across {{ analytics_summary.total_reports }} reports</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon rose">
+            <i class="fas fa-car-burst"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Most Damaged Component</div>
+            <div class="kpi-value" style="font-size: 1.35rem;">{{ analytics_summary.most_damaged_part }}</div>
+            <div class="kpi-trend trend-neutral">
+                <i class="fas fa-percentage"></i> <span>{{ analytics_summary.most_damaged_count }} occurrences detected</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon emerald">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Average Cost / Part</div>
+            <div class="kpi-value">₹{{ "{:,.2f}".format(analytics_summary.overall_avg_part_cost) }}</div>
+            <div class="kpi-trend trend-up">
+                <i class="fas fa-sliders-h"></i> <span>Weighted by severity factor</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon cyan">
+            <i class="fas fa-bolt"></i>
+        </div>
+        <div class="kpi-content">
+            <div class="kpi-label">Avg Multiplier Applied</div>
+            <div class="kpi-value">{{ analytics_summary.avg_multiplier }}×</div>
+            <div class="kpi-trend" style="color: #38BDF8;">
+                <i class="fas fa-info-circle"></i> <span>Minor (0.5×), Mod (1.0×), Sev (1.8×)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4 REQUIRED CHARTS GRID -->
+<div class="charts-grid">
+    <!-- 1. Daily Uploads Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-calendar-day"></i> 1. Daily Uploads & Inspection Volume
+            </div>
+            <span class="badge badge-admin">Activity Trend</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="dailyUploadsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 2. Top Parts Damaged Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-wrench"></i> 2. Top Damaged Parts Frequency
+            </div>
+            <span class="badge badge-admin">Part Breakdown</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="topPartsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 3. Severity Distribution Pie Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-chart-pie"></i> 3. Damage Severity Classification
+            </div>
+            <span class="badge badge-admin">Minor / Mod / Severe</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="severityPieChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 4. Average Cost Per Part Chart -->
+    <div class="chart-card">
+        <div class="card-header-flex">
+            <div class="card-title">
+                <i class="fas fa-tags"></i> 4. Average Repair Cost per Part (₹)
+            </div>
+            <span class="badge badge-admin">Financial Impact</span>
+        </div>
+        <div class="chart-container">
+            <canvas id="avgCostPartChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- SEVERITY FORMULA EXPLANATION CARD -->
+<div class="glass-card">
+    <div class="card-title" style="margin-bottom: 12px;">
+        <i class="fas fa-microchip"></i> AI Severity Classification Methodology
+    </div>
+    <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; margin-bottom: 16px;">
+        Each detection produced by YOLOv8 is evaluated in real time using geometric bounding box metrics, detection confidence, and spatial overlap counts:
+    </p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span class="badge badge-minor">Minor Severity</span>
+                <span style="font-weight: 700; color: #34D399;">0.5× Multiplier</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                Surface level scratches, small scuffs (<4% bbox area ratio), isolated parts without compound damage.
+            </div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-md); padding: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span class="badge badge-moderate">Moderate Severity</span>
+                <span style="font-weight: 700; color: #FBBF24;">1.0× Multiplier</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                Medium-size dents, panel deformation (4–12% bbox area ratio), or single overlapping collision point.
+            </div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span class="badge badge-severe">Severe Severity</span>
+                <span style="font-weight: 700; color: #F87171;">1.8× Multiplier</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                Deep structural deformation (>12% area), clustered compound fractures, or multiple overlapping impacts.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const commonChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: {
+                backgroundColor: '#1F2937',
+                titleColor: '#F9FAFB',
+                bodyColor: '#E5E7EB',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                padding: 10
+            }
+        }
+    };
+
+    // 1. Daily Uploads Chart
+    const dailyCtx = document.getElementById('dailyUploadsChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_daily.labels | tojson }},
+            datasets: [{
+                label: 'Scans & Uploads',
+                data: {{ chart_daily.data | tojson }},
+                borderColor: '#6366F1',
+                backgroundColor: 'rgba(99, 102, 241, 0.18)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.35,
+                pointBackgroundColor: '#6366F1',
+                pointBorderColor: '#FFFFFF',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            plugins: { ...commonChartOptions.plugins, legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 }, precision: 0 }
+                }
+            }
+        }
+    });
+
+    // 2. Top Damaged Parts Chart
+    const topPartsCtx = document.getElementById('topPartsChart').getContext('2d');
+    new Chart(topPartsCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_top_parts.labels | tojson }},
+            datasets: [{
+                label: 'Detections Count',
+                data: {{ chart_top_parts.data | tojson }},
+                backgroundColor: [
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(6, 182, 212, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(168, 85, 247, 0.8)',
+                    'rgba(236, 72, 153, 0.8)'
+                ],
+                borderRadius: 8,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            plugins: { ...commonChartOptions.plugins, legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 }, precision: 0 }
+                }
+            }
+        }
+    });
+
+    // 3. Severity Distribution Pie Chart
+    const severityCtx = document.getElementById('severityPieChart').getContext('2d');
+    const sevData = {{ chart_severity.data | tojson }};
+    new Chart(severityCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Minor (0.5×)', 'Moderate (1.0×)', 'Severe (1.8×)'],
+            datasets: [{
+                data: [sevData.Minor || 0, sevData.Moderate || 0, sevData.Severe || 0],
+                backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+                borderColor: '#131B2E',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            plugins: {
+                ...commonChartOptions.plugins,
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#D1D5DB', font: { family: 'Plus Jakarta Sans', size: 11 }, padding: 14 }
+                }
+            }
+        }
+    });
+
+    // 4. Average Cost Per Part Chart
+    const avgCostCtx = document.getElementById('avgCostPartChart').getContext('2d');
+    new Chart(avgCostCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_avg_cost.labels | tojson }},
+            datasets: [{
+                label: 'Avg Repair Cost (₹)',
+                data: {{ chart_avg_cost.data | tojson }},
+                backgroundColor: 'rgba(6, 182, 212, 0.75)',
+                borderColor: '#06B6D4',
+                borderWidth: 1,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            ...commonChartOptions,
+            plugins: { ...commonChartOptions.plugins, legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#9CA3AF', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: {
+                        color: '#9CA3AF',
+                        font: { family: 'Plus Jakarta Sans', size: 11 },
+                        callback: function(value) { return '₹' + value; }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

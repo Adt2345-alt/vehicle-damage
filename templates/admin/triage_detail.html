@@ -1,0 +1,179 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Triage Inspection #{{ report.id }}{% endblock %}
+{% block page_title %}Triage Assessment & Technician Assignment{% endblock %}
+{% block page_subtitle %}In-depth multi-factor evaluation for Report #{{ report.id }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('admin_triage') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-arrow-left"></i> Back to Triage Queue
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+    <!-- Visual Evidence Card -->
+    <div class="glass-card">
+        <div class="card-title" style="margin-bottom: 16px;">
+            <i class="fas fa-camera"></i> Damage Detection Visuals
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase;">
+                    YOLO Localization
+                </div>
+                {% if report.detected_image %}
+                    <img src="{{ url_for('static', filename=report.detected_image) }}" 
+                         style="width: 100%; border-radius: 10px; border: 1px solid var(--border-subtle); max-height: 240px; object-fit: contain; background: #000;" alt="Detected">
+                {% else %}
+                    <div style="padding: 40px; text-align: center; background: rgba(0,0,0,0.2); border-radius: 8px;">No image</div>
+                {% endif %}
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase;">
+                    Original Photo
+                </div>
+                {% if report.original_image %}
+                    <img src="{{ url_for('static', filename=report.original_image) }}" 
+                         style="width: 100%; border-radius: 10px; border: 1px solid var(--border-subtle); max-height: 240px; object-fit: contain; background: #000;" alt="Original">
+                {% else %}
+                    <div style="padding: 40px; text-align: center; background: rgba(0,0,0,0.2); border-radius: 8px;">No image</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top: 18px; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">Detected Damage Components:</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                {% for d in detections %}
+                    <span class="badge {{ d.badge_class }}">
+                        {{ d.part_name }} ({{ d.severity }}, {{ d.multiplier }}×) &bull; ₹{{ "{:,.2f}".format(d.final_price) }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Triage Score Breakdown Card -->
+    <div class="glass-card">
+        <div class="card-title" style="margin-bottom: 16px;">
+            <i class="fas fa-calculator"></i> Multi-Factor Score Breakdown
+        </div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 12px; border: 1px solid var(--border-subtle); margin-bottom: 18px;">
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Composite Triage Score</div>
+                <div style="font-size: 2rem; font-weight: 800; color: {% if queue_item.triage_score >= 75 %}#EF4444{% elif queue_item.triage_score >= 50 %}#F59E0B{% else %}#10B981{% endif %};">
+                    {{ queue_item.triage_score }} / 100
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Priority Classification</div>
+                <span class="badge {% if queue_item.priority == 'Critical' %}badge-severe{% elif queue_item.priority == 'High' %}badge-moderate{% elif queue_item.priority == 'Medium' %}badge-admin{% else %}badge-minor{% endif %}" style="font-size: 0.9rem; padding: 6px 14px;">
+                    {{ queue_item.priority }}
+                </span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                <div style="color: var(--text-muted); font-size: 0.75rem;">Damage Severity Pts:</div>
+                <div style="font-weight: 700; color: #FFFFFF;">{{ triage_calc.factors.severity_pts }} / 45 pts</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                <div style="color: var(--text-muted); font-size: 0.75rem;">Component Count Pts:</div>
+                <div style="font-weight: 700; color: #FFFFFF;">{{ triage_calc.factors.parts_pts }} / 25 pts</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                <div style="color: var(--text-muted); font-size: 0.75rem;">Financial Cost Impact:</div>
+                <div style="font-weight: 700; color: #FFFFFF;">{{ triage_calc.factors.cost_pts }} / 20 pts</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                <div style="color: var(--text-muted); font-size: 0.75rem;">Customer Urgency Pts:</div>
+                <div style="font-weight: 700; color: #FFFFFF;">{{ triage_calc.factors.meta_pts }} / 10 pts</div>
+            </div>
+        </div>
+
+        <!-- SLA Warning Box -->
+        <div style="margin-top: 18px; padding: 12px 16px; border-radius: 10px; {% if queue_item.sla_breached %}background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #F87171;{% else %}background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34D399;{% endif %}">
+            <div style="font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-{% if queue_item.sla_breached %}exclamation-triangle{% else %}shield-alt{% endif %}"></i>
+                {% if queue_item.sla_breached %}SLA BREACH ALERT: Service target has expired!{% else %}SLA Status: On-Time within {{ queue_item.sla_hours }}h target{% endif %}
+            </div>
+            <div style="font-size: 0.78rem; margin-top: 4px; opacity: 0.9;">
+                Target Deadline: {{ queue_item.sla_deadline.strftime('%Y-%m-%d %H:%M:%S') if queue_item.sla_deadline else 'N/A' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment & Workflow Management Form -->
+<div class="glass-card">
+    <div class="card-title" style="margin-bottom: 16px;">
+        <i class="fas fa-user-cog"></i> Specialist Assignment &amp; Queue Control
+    </div>
+    
+    <form action="{{ url_for('admin_triage_update', report_id=report.id) }}" method="POST">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-bottom: 18px;">
+            <div>
+                <label style="display: block; font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">
+                    Assigned Technician / Specialist
+                </label>
+                <select name="assigned_to" class="form-control" style="background: #172036; border: 1px solid var(--border-subtle); color: #fff; padding: 10px; border-radius: 8px; width: 100%;">
+                    <option value="Senior Master Tech - John Doe" {% if queue_item.assigned_to == 'Senior Master Tech - John Doe' %}selected{% endif %}>
+                        Senior Master Tech - John Doe (Chief Structural Lead)
+                    </option>
+                    <option value="Senior Bodywork Specialist - Sarah Connor" {% if queue_item.assigned_to == 'Senior Bodywork Specialist - Sarah Connor' %}selected{% endif %}>
+                        Senior Bodywork Specialist - Sarah Connor (Panel Alignment)
+                    </option>
+                    <option value="Collision Tech - Marcus Vance" {% if queue_item.assigned_to == 'Collision Tech - Marcus Vance' %}selected{% endif %}>
+                        Collision Tech - Marcus Vance (Body & Paint Tech)
+                    </option>
+                    <option value="Junior Service Tech - Alex Chen" {% if queue_item.assigned_to == 'Junior Service Tech - Alex Chen' %}selected{% endif %}>
+                        Junior Service Tech - Alex Chen (Cosmetic Apprentice)
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">
+                    Workflow Status
+                </label>
+                <select name="status" class="form-control" style="background: #172036; border: 1px solid var(--border-subtle); color: #fff; padding: 10px; border-radius: 8px; width: 100%;">
+                    <option value="Queued" {% if queue_item.status == 'Queued' %}selected{% endif %}>Queued</option>
+                    <option value="In Review" {% if queue_item.status == 'In Review' %}selected{% endif %}>In Review</option>
+                    <option value="Repair Scheduled" {% if queue_item.status == 'Repair Scheduled' %}selected{% endif %}>Repair Scheduled</option>
+                    <option value="In Progress" {% if queue_item.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Completed" {% if queue_item.status == 'Completed' %}selected{% endif %}>Completed / Resolved</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="display: block; font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">
+                    Override Priority
+                </label>
+                <select name="priority" class="form-control" style="background: #172036; border: 1px solid var(--border-subtle); color: #fff; padding: 10px; border-radius: 8px; width: 100%;">
+                    <option value="Critical" {% if queue_item.priority == 'Critical' %}selected{% endif %}>Critical (6h SLA)</option>
+                    <option value="High" {% if queue_item.priority == 'High' %}selected{% endif %}>High (12h SLA)</option>
+                    <option value="Medium" {% if queue_item.priority == 'Medium' %}selected{% endif %}>Medium (24h SLA)</option>
+                    <option value="Low" {% if queue_item.priority == 'Low' %}selected{% endif %}>Low (48h SLA)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 18px;">
+            <label style="display: block; font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">
+                Technician / Dispatcher Notes
+            </label>
+            <textarea name="notes" class="form-control" rows="3" style="background: #172036; border: 1px solid var(--border-subtle); color: #fff; padding: 10px; border-radius: 8px; width: 100%;" placeholder="Add specific workshop notes, part ordering requirements, or frame alignment instructions...">{{ queue_item.notes or '' }}</textarea>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check"></i> Save Triage Assignment
+            </button>
+            <a href="{{ url_for('admin_triage') }}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

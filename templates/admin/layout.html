@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Portal{% endblock %} - DamageVision</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Custom Admin CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <i class="fas fa-car-crash"></i>
+            </div>
+            <div class="brand-text">
+                <h1>DamageVision <span class="brand-badge">ADMIN</span></h1>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Overview</div>
+            <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-chart-pie"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ url_for('admin_analytics') }}" class="nav-link {% if active_page == 'analytics' %}active{% endif %}">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics & Charts</span>
+            </a>
+
+            <div class="nav-section-title">Management</div>
+            <a href="{{ url_for('admin_claims') }}" class="nav-link {% if active_page == 'claims' %}active{% endif %}">
+                <i class="fas fa-shield-alt"></i>
+                <span>Insurance Claims</span>
+            </a>
+            <a href="{{ url_for('admin_triage') }}" class="nav-link {% if active_page == 'triage' %}active{% endif %}">
+                <i class="fas fa-tasks"></i>
+                <span>Damage Triage &amp; SLA</span>
+            </a>
+            <a href="{{ url_for('admin_reports') }}" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
+                <i class="fas fa-file-invoice"></i>
+                <span>Damage Reports</span>
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="nav-link {% if active_page == 'users' %}active{% endif %}">
+                <i class="fas fa-users-cog"></i>
+                <span>User Directory</span>
+            </a>
+
+            <div class="nav-section-title">App Shortcuts</div>
+            <a href="{{ url_for('dashboard') }}" class="nav-link">
+                <i class="fas fa-camera"></i>
+                <span>Scan New Vehicle</span>
+            </a>
+            <a href="{{ url_for('home') }}" class="nav-link">
+                <i class="fas fa-home"></i>
+                <span>Public Home</span>
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-link" style="color: #F87171;">
+                <i class="fas fa-sign-out-alt" style="color: #F87171;"></i>
+                <span>Sign Out</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-profile-pill">
+                <div class="user-avatar">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name">{{ session.get('user_name', session.get('user_email', 'Administrator')) }}</div>
+                    <div class="user-role"><i class="fas fa-shield-alt"></i> Super Admin</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+        <header class="admin-header">
+            <div class="header-title">
+                <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+                <div class="header-subtitle">{% block page_subtitle %}AI Vehicle Damage & Severity Analytics System{% endblock %}</div>
+            </div>
+
+            <div class="header-actions">
+                {% block header_actions %}
+                <a href="{{ url_for('admin_export_csv') }}" class="btn btn-outline btn-sm">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> New Scan
+                </a>
+                {% endblock %}
+            </div>
+        </header>
+
+        <div class="content-body">
+            <!-- Flash Notifications -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'error' if category == 'error' else 'success' if category == 'success' else 'info' }}">
+                            <i class="fas fa-{{ 'exclamation-circle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
